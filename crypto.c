@@ -32,6 +32,14 @@ int main()
     goto out;
   }
 
+  #ifdef LOCK_CONFIG_ZONE
+  status = atcab_lock_config_zone();
+  if (status == ATCA_SUCCESS) {
+    printf("ATCA: Locked config zone\n");
+    goto out;
+  }
+  #endif
+
   status = atcab_is_locked(LOCK_ZONE_CONFIG, &config_is_locked);
   status = atcab_is_locked(LOCK_ZONE_DATA, &data_is_locked);
   if (status != ATCA_SUCCESS) {
@@ -45,6 +53,12 @@ int main()
      *((uint8_t *) &serial[2]), (config_is_locked ? "yes" : "no"),
      (data_is_locked ? "yes" : "no"));
 
+  uint16_t slot_config[32] = {0};
+  status = atcab_read_bytes_zone(ATCA_ZONE_CONFIG, 0, 20, slot_config, 32);
+
+  for (int i=0; i<8; i++)
+    printf("Slot[%i] config: %04x\n", i, slot_config[i]);
+
   uint8_t random_number[32] = {0};
   status = atcab_random(random_number);  // get a random number from the chip
   printf("Random number: ");
@@ -53,7 +67,7 @@ int main()
   printf("\n");
 
   uint8_t const *message = "helloworld";
-  uint8_t digest[32] = {0};
+  uint8_t digest[32] = { 0 };
   status = atcab_sha(10, message, digest);
   printf("Digest of %s is: ", message);
   for (int i=0; i<32; i++)
@@ -72,13 +86,41 @@ int main()
 
   uint8_t signature[64] = { 0 };
   status = atcab_sign(0, digest, signature);
-  printf("Signature of digest is: {R:");
+  if (status == ATCA_SUCCESS) {
+    printf("Signature of digest is: {R:");
+    for (int i=0; i<32; i++)
+      printf("%02x", signature[i]);
+    printf(", S:");
+    for (int i=0; i<32; i++)
+      printf("%02x", signature[32+i]);
+    printf("}\n");
+  }
+  else {
+    printf("ATCA: Failed to sign message\n");
+    goto out;
+  }
+
+  uint8_t alice_pubkey[64] = { 0 };
+  uint8_t bob_pubkey[64] = { 0 };
+
+  status = atcab_genkey(1, alice_pubkey);
+  printf("%02x", status);
+  status = atcab_genkey(2, bob_pubkey);
+  printf("%02x", status);
+  uint8_t s1[32] = { 0 };
+  uint8_t s2[32] = { 0 };
+
+  status = atcab_ecdh(1, bob_pubkey, s1);
+  status = atcab_ecdh(2, alice_key, s2);
+
+  printf("Computed ECDH premaster secret of Alice is: ");
   for (int i=0; i<32; i++)
-    printf("%02x", signature[i]);
-  printf(", S:");
+    printf("%02x", s1[i]);
+  printf("\n");
+  printf("Computed ECDH premaster secret of Bob is: ");
   for (int i=0; i<32; i++)
-    printf("%02x", signature[32+i]);
-  printf("}\n");
+    printf("%02x", s2[i]);
+  printf("\n");
 
   return 1;
 
