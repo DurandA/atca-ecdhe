@@ -111,7 +111,7 @@ int main()
   uint8_t s2[32] = { 0 };
 
   status = atcab_ecdh(1, bob_pubkey, s1);
-  status = atcab_ecdh(2, alice_key, s2);
+  status = atcab_ecdh(2, alice_pubkey, s2);
 
   printf("Computed ECDH premaster secret of Alice is: ");
   for (int i=0; i<32; i++)
