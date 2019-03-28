@@ -73,19 +73,14 @@ int main()
   uint8_t signature_V[64];
   status = atcab_sign(1, digest_V, signature_V); // The message to be signed will be loaded into the Message Digest Buffer to the ATECC608A device or TempKey for other devices.
   printf("%02x", status);
-  uint8_t secret_V[32];
-  status = atcab_ecdh(3, E_U, secret_V);
+  atcab_ecdh_base(ECDH_MODE_COPY_TEMP_KEY, 3, E_U, NULL, NULL);
   printf("%02x", status);
-
-  status = atcab_nonce_load(NONCE_MODE_TARGET_ALTKEYBUF, secret_V, sizeof(secret_V));
-  printf("\n");  
-  printf("atcab_nonce_load: %02x\n", status);
 
   uint8_t out_kdf_hkdf[32];
   uint8_t data_input_16[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
   status = atcab_kdf(
-      KDF_MODE_ALG_HKDF | KDF_MODE_SOURCE_ALTKEYBUF | KDF_MODE_TARGET_TEMPKEY,
+      KDF_MODE_ALG_HKDF | KDF_MODE_SOURCE_TEMPKEY | KDF_MODE_TARGET_TEMPKEY,
       0x0000, // K_2 stored in slot 4
               // Source key slot is the LSB and target key slot is the MSB.
       KDF_DETAILS_HKDF_MSG_LOC_INPUT | ((uint32_t)sizeof(data_input_16) << 24), /* Actual size
