@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include "cryptoauthlib.h"
+#include "basic/atca_basic_aes_gcm.h"
 
 int main()
 {
@@ -91,17 +92,19 @@ int main()
       out_kdf_hkdf,
       NULL);
   printf("atcab_kdf: %02x\n", status);
-  
-  const uint8_t iv[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
- 	atca_aes_cbc_ctx_t aes_cbc_ctx;
-  status = atcab_aes_cbc_init(&aes_cbc_ctx, ATCA_TEMPKEY_KEYID, 0, iv); /* AES enable bit should be 1 in ATCA_ZONE_CONFIG
-                                                                          https://github.com/MicrochipTech/cryptoauthlib/blob/6919b6d67be78ed998217221a923ea842bbace1a/test/atca_tests_aes.c#L75*/
-  printf("atcab_aes_cbc_init: %02x\n", status);
 
+  uint8_t iv[12];
+  atca_aes_gcm_ctx_t aes_gcm_ctx;
+  status = atcab_aes_gcm_init_rand(&aes_gcm_ctx, ATCA_TEMPKEY_KEYID, 0, 12, NULL, 0, iv); /* AES enable bit should be 1 in ATCA_ZONE_CONFIG
+                                                                                           https://github.com/MicrochipTech/cryptoauthlib/blob/6919b6d67be78ed998217221a923ea842bbace1a/test/atca_tests_aes.c#L75*/
   const uint8_t *plaintext = "helloworldhellow";
   uint8_t ciphertext[16] = { 0 };
-  status = atcab_aes_cbc_encrypt_block(&aes_cbc_ctx, plaintext, ciphertext);
-  printf("atcab_aes_cbc_encrypt_block: %02x\n", status);
+  const uint8_t *aad = "authenticated";
+  status = atcab_aes_gcm_aad_update(&aes_gcm_ctx, aad, 13);
+  status = atcab_aes_gcm_encrypt_update(&aes_gcm_ctx, plaintext, 16, ciphertext);
+  uint8_t tag[12];
+  status = atcab_aes_gcm_encrypt_finish(&aes_gcm_ctx, tag, 12);
+  printf("atcab_aes_gcm_encrypt_finish: %02x\n", status);
 
   return 1;
 
